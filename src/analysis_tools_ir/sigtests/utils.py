@@ -7,9 +7,6 @@ def get_parsed_runs(*args, qrels_fp: str, metric: str, depth: int):
     parsed = []
 
     for arg in args:
-        parsed.append(parse_run(arg,
-                                qrels=qrel,
-                                metric=metric,
-                                depth=depth))
+        parsed.append(parse_run(arg, qrels=qrel, metric=metric, depth=depth))
 
     return args

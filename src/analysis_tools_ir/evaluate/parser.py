@@ -1,21 +1,24 @@
 import dataclasses
 import os
 
+import numpy
 from trectools import TrecRun, TrecEval, TrecQrel
 import pandas as pd
-from typing import Union
+from typing import Union, Dict
+
+from ..utils.cache import Cache
 from ..utils.dummyfile import DummyFile
 
 
 # Hijack for Recall @ K (which does not seem very useful)
-def get_recall(self, depth=1000, per_query=False, trec_eval=True, removeUnjudged=False):
+def get_recall(evaluator: TrecEval, depth=1000, per_query=False, trec_eval=True, removeUnjudged=False):
     label = "Recall@%d" % (depth)
 
-    run = self.run.run_data
-    qrels = self.qrels.qrels_data
+    run = evaluator.run.run_data
+    qrels = evaluator.qrels.qrels_data
 
     # check number of queries
-    nqueries = len(self.run.topics())
+    nqueries = len(evaluator.run.topics())
 
     if removeUnjudged:
         onlyjudged = pd.merge(run, qrels[["query", "docid", "rel"]], how="left")
@@ -23,14 +26,23 @@ def get_recall(self, depth=1000, per_query=False, trec_eval=True, removeUnjudged
         run = onlyjudged[["query", "q0", "docid", "rank", "score", "system"]]
 
     if trec_eval:
-        trecformat = self.run.run_data.sort_values(["query", "score", "docid"],
-                                                   ascending=[True, False, False]).reset_index()
-        topX = trecformat.groupby("query")[["query", "docid", "score"]].head(depth).reset_index(drop=True)
+        trecformat = evaluator.run.run_data.sort_values(
+            ["query", "score", "docid"], ascending=[True, False, False]
+        ).reset_index()
+        topX = (
+            trecformat.groupby("query")[["query", "docid", "score"]]
+            .head(depth)
+            .reset_index(drop=True)
+        )
     else:
-        topX = self.run.run_data.groupby("query")[["query", "docid", "score"]].head(depth).reset_index(drop=True)
+        topX = (
+            evaluator.run.run_data.groupby("query")[["query", "docid", "score"]]
+            .head(depth)
+            .reset_index(drop=True)
+        )
 
     # gets the number of relevant documents per query
-    n_relevant_docs = self.get_relevant_documents(per_query=True)
+    n_relevant_docs = evaluator.get_relevant_documents(per_query=True)
 
     relevant_docs = qrels[qrels.rel > 0]
     selection = pd.merge(topX, relevant_docs[["query", "docid", "rel"]], how="left")
@@ -43,31 +55,64 @@ def get_recall(self, depth=1000, per_query=False, trec_eval=True, removeUnjudged
     if per_query:
         return recall_per_query
 
-    #if rprec_per_query.empty:
-    #    return 0.0
-
     return (recall_per_query.sum() / nqueries)[label]
 
 
 TrecEval.get_recall = get_recall
 
+text_attrs = {
+    "ndcg": "get_ndcg",
+    "p": "get_precision",
+    "r": "get_relevant_documents",
+    "recall": "get_recall",
+    "rprec": "get_rprec",
+    "bpref": "get_bpref",
+}
+
 
 @dataclasses.dataclass(init=True, repr=True)
 class Run:
-    run: str
+    run: Dict
     fp: str
-    metric: Union[float, int]
+    metric: str
 
 
-def parse_run(fp, qrels, metric="NDCG", depth=10, kwargs=None):
+def get_results(evaluator, metric, depth, **kwargs) -> float:
+    results = None
+    match metric.lower():
+        case "ndcg":
+            results = evaluator.get_ndcg(depth=depth, **kwargs)
+        case "precision" | "p":
+            results = evaluator.get_precision(depth=depth, **kwargs)
+        case "recall" | "r":
+            results = get_recall(evaluator, depth=depth, **kwargs)
+        case "rprec" | "r-prec":
+            results = evaluator.get_rprec(depth=depth, **kwargs)
+        case "bpref" | "b-pref":
+            results = evaluator.get_bpref(depth=depth, **kwargs)
+
+    if isinstance(results, numpy.float64):
+        results = results.tolist()
+        if isinstance(results, float):
+            return results
+
+    results = results.to_dict()
+
+    res_key = list(results.keys())[0]
+    res = results.pop(res_key)
+
+    return res
+
+
+@Cache
+def parse_run(fp, qrels, metric="NDCG", depth=10, **kwargs) -> Run:
     if kwargs is None:
-        kwargs = {'per_query': True}
-
-    assert os.path.exists(fp)
-    assert os.path.exists(qrels)
+        kwargs = {"per_query": True}
+    else:
+        kwargs['per_query'] = True
 
     if isinstance(fp, list):
-        DummyFile.from_list()
+        fp = DummyFile.from_list(fp)
 
     run = TrecRun(fp.serialize() if isinstance(fp, DummyFile) else fp)
 
@@ -76,19 +121,6 @@ def parse_run(fp, qrels, metric="NDCG", depth=10, kwargs=None):
 
     evaluator = TrecEval(run, qrels)
 
-    text_attrs = {
-        "NDCG": 'get_ndcg',
-        "P": 'get_precision',
-        "R": 'get_relevant_documents',
-        "Recall": 'get_recall',
-        "rprec": 'get_rprec',
-        'bpref': 'get_bpref'
-    }
-
-    res = getattr(evaluator, text_attrs[metric])(depth=depth, **kwargs)
-    res = res.to_dict()
-
-    res_key = list(res.keys())[0]
-    res = res.pop(res_key)
+    res = get_results(evaluator, metric, depth, **kwargs)
 
     return Run(res, fp, metric + "@" + str(depth))

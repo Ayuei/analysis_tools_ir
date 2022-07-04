@@ -17,7 +17,7 @@ class LivePlotter:
     ylim: int = 100
     figsize: Tuple[float] = (10, 10)
     grid: bool = True
-    title: str = ''
+    title: str = ""
     fig: matplotlib.figure.Figure = None
     ax: matplotlib.figure.Axes = None
     line_of_best_fit: bool = False
@@ -47,10 +47,13 @@ class LivePlotter:
 
         setattr(self, attr, vals)
 
-    def add_values(self, x: Union[int, float, List[int, float]] = None,
-                         y: Union[int, float, List[int, float]] = None):
-        self._add_value(x, 'x')
-        self._add_value(y, 'y')
+    def add_values(
+        self,
+        x: Union[int, float, List[int, float]] = None,
+        y: Union[int, float, List[int, float]] = None,
+    ):
+        self._add_value(x, "x")
+        self._add_value(y, "y")
 
     def live_plot(self):
         clear_output(wait=True)

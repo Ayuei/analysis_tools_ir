@@ -30,7 +30,7 @@ class DummyFile:
         return x
 
     @classmethod
-    def from_list(cls, lst) -> 'DummyFile':
+    def from_list(cls, lst) -> "DummyFile":
         obj = cls()
         obj.internal = lst
 

@@ -79,7 +79,6 @@ def Cache(
 ):
     """
     Serialisation Cache for expensive operations with functions and objects.
-
     WARNING: Do not use on objects where you expect attributes to change within the cached method call.
     As the cache will just load old values prior to attribute changes.
     """

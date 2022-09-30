@@ -42,7 +42,10 @@ class DummyFile:
             self.tempfile = None
 
         self.tempfile = tempfile.NamedTemporaryFile()
-        self.tempfile.writelines(self.internal)
+
+        for line in self.internal:
+            self.tempfile.write(f"{line}\n")
+
         self.tempfile.flush()
 
         return self.tempfile.name

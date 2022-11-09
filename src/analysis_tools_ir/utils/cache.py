@@ -29,6 +29,8 @@ class _Cache(object):
         self.function = function
         self.ignore_args = ignore_args
         self.is_instance = is_instance
+        self._cache_hits = 0
+        self._cache_miss = 0
 
         if not os.path.exists(self.cache_dir):
             os.makedirs(self.cache_dir)
@@ -58,8 +60,10 @@ class _Cache(object):
         output_path = os.path.join(self.cache_dir, key)
 
         if os.path.exists(output_path):
-            print("called")
+            self._cache_hits += 1
             return dill.load(open(output_path, 'rb'))
+        else:
+            self._cache_miss += 1
 
         if instance:
             args.insert(0, instance)

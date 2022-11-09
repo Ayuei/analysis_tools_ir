@@ -136,9 +136,9 @@ def parse_run(fp, qrels, metric="NDCG", depth=10,
               **kwargs) -> Run:
 
     if backend == "python":
-        _parse_run_python(fp, qrels, metric, depth, **kwargs)
+        return _parse_run_python(fp, qrels, metric, depth, **kwargs)
 
     elif backend == "binary" or backend == "trec_binary":
-        _parse_run_binary(fp, qrels, metric, depth, **kwargs)
+        return _parse_run_binary(fp, qrels, metric, depth, **kwargs)
     else:
         raise ValueError("Unknown backend specified: Use either trec_binary or python")

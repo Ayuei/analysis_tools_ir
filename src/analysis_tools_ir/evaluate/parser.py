@@ -104,8 +104,9 @@ def get_results(evaluator, metric, depth, **kwargs) -> float:
     return res
 
 
-@Cache
-def parse_run(fp, qrels, metric="NDCG", depth=10, **kwargs) -> Run:
+def _parse_run_python(fp, qrels, metric="NDCG", depth=10,
+                  backend="python",
+                  **kwargs) -> Run:
     if kwargs is None:
         kwargs = {"per_query": True}
     else:
@@ -124,3 +125,20 @@ def parse_run(fp, qrels, metric="NDCG", depth=10, **kwargs) -> Run:
     res = get_results(evaluator, metric, depth, **kwargs)
 
     return Run(res, fp, metric + "@" + str(depth))
+
+
+def _parse_run_binary(fp, qrels, metric, depth, **kwargs):
+    raise NotImplementedError
+
+@Cache
+def parse_run(fp, qrels, metric="NDCG", depth=10,
+              backend="python",
+              **kwargs) -> Run:
+
+    if backend == "python":
+        _parse_run_python(fp, qrels, metric, depth, **kwargs)
+
+    elif backend == "binary" or backend == "trec_binary":
+        _parse_run_binary(fp, qrels, metric, depth, **kwargs)
+    else:
+        raise ValueError("Unknown backend specified: Use either trec_binary or python")

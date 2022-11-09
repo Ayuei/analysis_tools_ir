@@ -1,0 +1,3 @@
+[submodule "src/analysis_tools_ir/evaluate/trec_eval"]
+	path = src/analysis_tools_ir/evaluate/trec_eval
+	url = https://github.com/usnistgov/trec_eval
